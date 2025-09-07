@@ -1,0 +1,15 @@
+numpy
+pandas
+dlt[clickhouse,s3,filesystem]
+fsspec
+clickhouse-driver
+clickhouse-connect
+python-dotenv
+
+pyarrow
+pyiceberg
+
+s3fs
+adlfs
+
+azure-storage-blob
