@@ -1,5 +1,8 @@
 **/__pycache__/
 **/minio_data/
+**/notebooks/
+**/secrets.toml
+uv.lock
 
 
 # Byte-compiled / optimized / DLL files
