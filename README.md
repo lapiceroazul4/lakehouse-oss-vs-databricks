@@ -33,17 +33,11 @@ This project uses environment variables to securely manage all credentials and c
 - **ClickHouse**: `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_HOST`
 - **Azure Storage**: `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`
 
-### Security
-
-- ❌ **Never** commit the `.env` file to the repository
-- ✅ The `.env` file is included in `.gitignore`
-- ✅ Use `.env.example` as a template for other developers
-
 ### Execution
 
 ```bash
 # Start the services
-docker-compose up -d
+docker compose up -d
 
 # Notebooks will automatically load environment variables
 # No need to hardcode credentials
