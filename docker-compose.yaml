@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  # ---------------- MinIO ----------------
+  minio:
+    image: minio/minio
+    container_name: minio_docker_base
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    volumes:
+      - ./minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - backend
+
+  # ---------------- Jupyter Notebook ----------------
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.4.1
+    container_name: jupyter_notebook_basico
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/workspace
+      - ./requirements.txt:/tmp/requirements.txt
+    command: >
+      bash -c "
+      pip install --no-cache-dir -r /tmp/requirements.txt &&
+      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' &&
+      tail -f /dev/null"
+    networks:
+      - backend
+
+  # ---------------- ClickHouse ----------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse_docker_basico
+    ports:
+      - "8123:8123"
+      - "9002:9000"   # cuidado: este puerto se pisa con MinIO si ambos se exponen
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+    networks:
+      - backend
+
+  # ---------------- Postgres ----------------
+  postgres:
+    image: postgres:14
+    container_name: postgres_docker_base
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  # ---------------- PgAdmin ----------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_docker_base
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - backend
+
+  # ---------------- Nessie ----------------
+  nessie:
+    image: projectnessie/nessie:latest
+    container_name: nessie_docker_base
+    environment:
+      - QUARKUS_HTTP_PORT=19120
+      - QUARKUS_HTTP_CORS=true
+      - QUARKUS_HTTP_CORS_ORIGINS=*
+    ports:
+      - "19120:19120"
+    networks:
+      - backend
+
+# ---------------- Volúmenes ----------------
+volumes:
+  postgres_data:
+  pgadmin_data:
+  minio_data:
+
+# ---------------- Redes ----------------
+networks:
+  backend:
+    driver: bridge
