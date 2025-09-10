@@ -1,5 +1,12 @@
 dlt==1.15.0
-dlt[s3]
+dlt[s3, filesystem, clickhouse]
 pyarrow==21.0.0
 pyiceberg==0.9.1
 python-dotenv==1.1.1
+clickhouse-driver
+clickhouse-connect
+azure-storage-blob
+s3fs
+adlfs
+numpy
+pandas
