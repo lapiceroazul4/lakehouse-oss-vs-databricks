@@ -1,93 +1,91 @@
-version: "3.9"
-
 services:
-  # ---------------- MinIO ----------------
+  jupyter:
+    image: jupyter/base-notebook
+    container_name: jupyter_proyecto
+    env_file:
+      - .env
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/workspace
+      - ./dlt/secrets.toml:/workspace/.dlt/secrets.toml
+      - ./requirements.txt:/tmp/requirements.txt
+      - ./.env:/workspace/.env
+    command: >
+      bash -c "
+      pip install --no-cache-dir -r /tmp/requirements.txt &&
+      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='${JUPYTER_TOKEN}' --NotebookApp.password='${JUPYTER_PASSWORD}' --notebook-dir=/workspace &&
+      tail -f /dev/null"
+    networks:
+      - proyecto_stack
+
   minio:
     image: quay.io/minio/minio
     container_name: minio_proyecto
+    env_file:
+      - .env
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=password
-      - MINIO_REGION=us-east-1
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_REGION=${MINIO_REGION}
     entrypoint: >
       /bin/sh -c "
       minio server /data --console-address ':9001' &
       sleep 10;
-      mc alias set myminio http://localhost:9000 admin password;
+      mc alias set myminio http://localhost:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
       mc mb myminio/my-bucket --ignore-existing;
       tail -f /dev/null"
     volumes:
       - minio_data:/data
     networks:
-      - backend
+      - proyecto_stack
 
-  # ---------------- Jupyter Notebook ----------------
-  jupyter:
-    image: jupyter/pyspark-notebook:spark-3.4.1
-    container_name: jupyter_notebook_basico
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./notebooks:/home/jovyan/
-      - ./requirements.txt:/tmp/requirements.txt
-    command: >
-      bash -c "
-      pip install --no-cache-dir -r /tmp/requirements.txt &&
-      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' &&
-      tail -f /dev/null"
-    networks:
-      - backend
-
-  # ---------------- ClickHouse ----------------
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    container_name: clickhouse_docker_basico
-    ports:
-      - "8123:8123"
-      - "9002:9000"   # cuidado: este puerto se pisa con MinIO si ambos se exponen
-    environment:
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: password
-    networks:
-      - backend
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-  # ---------------- Nessie ----------------
   nessie:
     image: ghcr.io/projectnessie/nessie:0.99.0
     container_name: nessie_proyecto
+    env_file:
+      - .env
     ports:
       - "19120:19120"
     environment:
-      - QUARKUS_HTTP_PORT=19120
-      - QUARKUS_HTTP_CORS=true
-      - QUARKUS_HTTP_CORS_ORIGINS=*
       - nessie.version.store.type=IN_MEMORY
       - nessie.catalog.default-warehouse=warehouse
       - nessie.catalog.warehouses.warehouse.location=s3://my-bucket/
       - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
       - nessie.catalog.service.s3.default-options.path-style-access=true
       - nessie.catalog.service.s3.default-options.auth-type=STATIC
-      - nessie.catalog.secrets.access-key.name=admin
-      - nessie.catalog.secrets.access-key.secret=password
-      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.catalog.secrets.access-key.name=${NESSIE_ACCESS_KEY}
+      - nessie.catalog.secrets.access-key.secret=${NESSIE_SECRET_KEY}
+      - nessie.catalog.service.s3.default-options.region=${MINIO_REGION}
       - nessie.server.authentication.enabled=false
-      - nessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
     volumes:
       - nessie_data:/var/lib/nessie
     networks:
-      - backend
+      - proyecto_stack
 
-# ---------------- Volúmenes ----------------
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: clickhouse_proyecto
+    env_file:
+      - .env
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    environment:
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - proyecto_stack
+
 volumes:
   minio_data:
   nessie_data:
   clickhouse_data:
 
-# ---------------- Redes ----------------
 networks:
-  backend:
-    driver: bridge
+  proyecto_stack:
